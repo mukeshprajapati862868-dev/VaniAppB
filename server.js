@@ -43,7 +43,6 @@ const userRoutes = require("./routes/users");
 const adminRoutes = require("./routes/admin");
 const serviceRoutes = require("./routes/serviceRoutes");
 
-
 // WORKER ROUTE ADD
 const workerRoutes = require("./routes/workerRoutes");
 
@@ -92,7 +91,6 @@ app.use(mongoSanitize());
 app.use(hpp());
 
 
-
 // ===============================
 // CORS (UPDATED TO ALLOW ALL ORIGINS FOR MOBILE DEVS)
 // ===============================
@@ -130,7 +128,6 @@ app.use(
 );
 
 
-
 // ===============================
 // RATE LIMIT
 // ===============================
@@ -152,7 +149,6 @@ const limiter = rateLimit({
 app.use("/api/", limiter);
 
 
-
 // ===============================
 // LOGGER
 // ===============================
@@ -167,7 +163,6 @@ app.use(
             "combined"
     )
 );
-
 
 
 // ===============================
@@ -196,7 +191,6 @@ app.get(
     }
 
 );
-
 
 
 // ===============================
@@ -248,11 +242,40 @@ app.use(
 );
 
 
-
-
 // ... existing routes ...
 
-app.use("/api/services", serviceRoutes);
+app.use(
+    "/api/services",
+    serviceRoutes
+);
+
+
+// ===============================
+// ROOT ROUTE
+// ===============================
+// ADDED ONLY TO FIX:
+// {"error":"Endpoint not found"}
+// when opening https://vaniappb.onrender.com/
+
+app.get("/", (req, res) => {
+
+    res.status(200).json({
+
+        status: "success",
+
+        message: "VaniAppB API is running successfully.",
+
+        server: "VaniAppB",
+
+        environment: process.env.NODE_ENV || "production",
+
+        timestamp: new Date()
+
+    });
+
+});
+
+
 // ===============================
 // 404 ROUTE HANDLER
 // ===============================
@@ -268,9 +291,7 @@ app.use(
         });
 
     }
-
 );
-
 
 
 // ===============================
@@ -310,9 +331,7 @@ app.use(
 
 
     }
-
 );
-
 
 
 // ===============================
@@ -336,14 +355,19 @@ const startServer = async () => {
             "✅ MongoDB Connected Successfully"
         );
 
+
         // Drop userId_1 index if it exists
         const Worker = require('./models/Worker');
-        try {
-            await Worker.collection.dropIndex('userId_1').catch(() => {});
-        } catch (e) {
-            // Ignore if index doesn't exist
-        }
 
+        try {
+
+            await Worker.collection.dropIndex('userId_1').catch(() => {});
+
+        } catch (e) {
+
+            // Ignore if index doesn't exist
+
+        }
 
 
         server = app.listen(
@@ -379,14 +403,17 @@ const startServer = async () => {
             "❌ MongoDB Connection Failed:",
             error.message
         );
+
         process.exit(1);
+
     }
+
 };
+
 
 // RUN SERVER
 
 startServer();
-
 
 
 // ===============================
@@ -409,11 +436,13 @@ process.on(
 
         if (server) {
 
+
             server.close(() => {
 
                 process.exit(1);
 
             });
+
 
         }
 
@@ -422,20 +451,29 @@ process.on(
             process.exit(1);
 
         }
+
     }
 
 );
+
+
 process.on(
+
     "uncaughtException",
+
     (error) => {
+
         console.error(
             "💥 UNCAUGHT EXCEPTION:",
             error.message
         );
+
         process.exit(1);
+
     }
 
 );
+
 
 // ===============================
 // EXPORT

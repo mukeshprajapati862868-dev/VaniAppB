@@ -1,0 +1,30 @@
+{
+  "users": [],
+  "products": [],
+  "categories": [],
+  "carts": [],
+  "bookings": [],
+  "addresses": [],
+  "requests": [],
+  "contentConfig": {
+    "appName": "VaniSystem",
+    "welcomeText": "Modern operations with secure control",
+    "sectionName": "quickActions",
+    "title": "Man Hair Cut ",
+    "icon": "https://images.unsplash.com/photo-1524758631624-e2822e304c36?w=300",
+    "titleModal": "Man Hair Cut ",
+    "rating": "4.8",
+    "reviews": "1K",
+    "price": "₹499",
+    "description": "Add a professional service detail here.",
+    "durationTime": "45 mins",
+    "durationPrice": "₹499",
+    "highlights": "Professional team, Fast service, Secure handling",
+    "aftercare": "Keep area clean, Share feedback",
+    "howItWorksStep": "Booking",
+    "howItWorksDesc": "Admin approves and the service is shown to the user app.",
+    "_id": "content_Dy46voy-B3",
+    "id": "content_p_V3NMXwcs",
+    "updatedAt": "2026-08-24T12:12:00.855Z"
+  }
+}

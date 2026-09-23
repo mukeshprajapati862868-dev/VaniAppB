@@ -292,6 +292,7 @@ async function createBooking(payload) {
 async function getBookingsByUser(userId) {
   return await Booking.find({ userId })
     .populate("products.productId")
+    .populate("workerId")
     .sort({ createdAt: -1 });
 }
 

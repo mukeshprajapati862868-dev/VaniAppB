@@ -1,19 +1,12 @@
 const bookingService = require("../services/bookingService");
 const { getLocationFromRequest } = require("../utils/location");
 const mongoose = require("mongoose");
-const BookingRequest = require("../models/BookingRequest"); // path check kar lena
+const BookingRequest = require("../models/BookingRequest");
+const Worker = require("../models/Worker"); // path check kar lena
 
 /**
  * ============================================================
  * BOOKING CONTROLLER
- * ============================================================
- *
- * POST  /api/bookings
- * GET   /api/bookings
- * GET   /api/bookings/:id
- * PATCH /api/bookings/:id/status
- * GET   /api/bookings/admin/all
- *
  * ============================================================
  */
 
@@ -33,8 +26,6 @@ async function createBooking(req, res, next) {
       bookingStatus,
       totalAmount,
       products,
-
-      // New fields from frontend payload
       job,
       serviceId,
       serviceName,
@@ -47,7 +38,6 @@ async function createBooking(req, res, next) {
       customerName,
       customerEmail,
       customerPhone,
-      workerId, // frontend se aayega (optional)
     } = req.body;
 
     console.log("========================================");
@@ -55,11 +45,9 @@ async function createBooking(req, res, next) {
     console.log("========================================");
     console.log("BODY:", JSON.stringify(req.body, null, 2));
 
-    /**
-     * ========================================================
-     * USER CHECK
-     * ========================================================
-     */
+    // ========================================================
+    // USER CHECK
+    // ========================================================
     if (!req.user || !req.user.id) {
       return res.status(401).json({
         status: "error",
@@ -67,14 +55,11 @@ async function createBooking(req, res, next) {
       });
     }
 
-    /**
-     * ========================================================
-     * NORMALIZE ADDRESS
-     * ========================================================
-     */
+    // ========================================================
+    // NORMALIZE ADDRESS
+    // ========================================================
     if (typeof address === "string") {
       const addressText = address.trim();
-
       if (addressText) {
         const parts = addressText
           .split(",")
@@ -123,11 +108,9 @@ async function createBooking(req, res, next) {
       };
     }
 
-    /**
-     * ========================================================
-     * LOCATION DETECTION
-     * ========================================================
-     */
+    // ========================================================
+    // LOCATION DETECTION
+    // ========================================================
     const needsDetection =
       !address || !address.city || !address.state || !address.pincode;
 
@@ -149,11 +132,9 @@ async function createBooking(req, res, next) {
       });
     }
 
-    /**
-     * ========================================================
-     * BOOKING TIME & DATE
-     * ========================================================
-     */
+    // ========================================================
+    // BOOKING TIME & DATE
+    // ========================================================
     if (!bookingTime) {
       bookingTime = new Date().toISOString();
     }
@@ -177,18 +158,14 @@ async function createBooking(req, res, next) {
       });
     }
 
-    /**
-     * ========================================================
-     * PRODUCTS
-     * ========================================================
-     */
+    // ========================================================
+    // PRODUCTS
+    // ========================================================
     const safeProducts = Array.isArray(products) ? products : [];
 
-    /**
-     * ========================================================
-     * EXTRACT LOCATION FOR WORKER MATCHING
-     * ========================================================
-     */
+    // ========================================================
+    // EXTRACT LOCATION
+    // ========================================================
     let bookingLocation = null;
 
     if (pickupLocation && pickupLocation.latitude && pickupLocation.longitude) {
@@ -200,17 +177,11 @@ async function createBooking(req, res, next) {
         ],
       };
       console.log("Booking location extracted:", bookingLocation);
-    } else if (address && address.city && address.state) {
-      console.log("No pickupLocation provided, using address for location");
-    } else {
-      console.log("No valid location provided for worker matching");
     }
 
-    /**
-     * ========================================================
-     * MAP SERVICE ID TO PRODUCTS
-     * ========================================================
-     */
+    // ========================================================
+    // MAP SERVICE ID TO PRODUCTS
+    // ========================================================
     if (
       safeProducts.length === 0 &&
       serviceId &&
@@ -224,11 +195,9 @@ async function createBooking(req, res, next) {
       });
     }
 
-    /**
-     * ========================================================
-     * CREATE BOOKING
-     * ========================================================
-     */
+    // ========================================================
+    // CREATE BOOKING
+    // ========================================================
     const booking = await bookingService.createBooking({
       userId: req.user.id,
       products: safeProducts,
@@ -237,7 +206,7 @@ async function createBooking(req, res, next) {
       bookingTime,
       paymentMethod: paymentMethod || "COD",
       paymentStatus: paymentStatus || "pending",
-      bookingStatus: bookingStatus || "pending",
+      bookingStatus: bookingStatus || "SEARCHING_WORKER",
       totalAmount: Number(totalAmount) || Number(estimatedCharge) || 0,
       location: bookingLocation,
       serviceDetails: {
@@ -258,15 +227,24 @@ async function createBooking(req, res, next) {
     console.log("BOOKING CREATED SUCCESSFULLY:", booking?._id);
     console.log("========================================");
 
-    /**
-     * ========================================================
-     * CREATE BOOKING REQUEST FOR WORKER (FIXED)
-     * ========================================================
-     */
+    // ========================================================
+    // SEND REQUEST TO ALL AVAILABLE WORKERS
+    // ========================================================
     try {
-      // Only create request if valid workerId is provided
-      if (workerId && mongoose.isValidObjectId(workerId)) {
-        // serviceId must be valid ObjectId
+      // 1. Find all available + approved workers
+      const availableWorkers = await Worker.find({
+        availabilityStatus: "ON",
+        status: "approved",
+      }).select("_id");
+
+      console.log(
+        `Found ${availableWorkers.length} available workers`
+      );
+
+      if (availableWorkers.length === 0) {
+        console.log("⚠️ No available workers found");
+      } else {
+        // 2. Prepare serviceId
         let finalServiceId = null;
 
         if (serviceId && mongoose.isValidObjectId(serviceId)) {
@@ -278,38 +256,29 @@ async function createBooking(req, res, next) {
           finalServiceId = booking.products[0].productId;
         }
 
-        if (!finalServiceId) {
-          console.log("⚠️ Skipping BookingRequest: valid serviceId not found");
-        } else {
-          await BookingRequest.create({
-            bookingId: booking._id,
-            workerId: workerId,
-            userId: booking.userId,
-            serviceId: finalServiceId,
-            distance: Number(distanceKm) || 0,
-            status: "SENT",
-            sentAt: new Date(),
-          });
+        // 3. Create BookingRequest for each worker
+        const requests = availableWorkers.map((worker) => ({
+          bookingId: booking._id,
+          workerId: worker._id,
+          userId: booking.userId,
+          serviceId: finalServiceId,
+          distance: Number(distanceKm) || 0,
+          status: "SENT",
+          sentAt: new Date(),
+        }));
 
-          console.log(
-            "✅ BookingRequest created successfully for worker:",
-            workerId
-          );
+        await BookingRequest.insertMany(requests, { ordered: false });
 
-          // Optional: Socket emit yahan kar sakte ho
-          // io.to(workerId.toString()).emit("new_booking_request", { ... });
-        }
-      } else {
         console.log(
-          "⚠️ No valid workerId provided. BookingRequest not created."
+          `✅ BookingRequest created for ${availableWorkers.length} workers`
         );
       }
     } catch (requestErr) {
       console.error(
-        "❌ BookingRequest creation failed:",
+        "❌ Failed to create BookingRequests:",
         requestErr.message
       );
-      // Booking fail mat karo agar request create nahi hua
+      // Booking fail mat karo
     }
 
     return res.status(201).json({

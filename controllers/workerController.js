@@ -626,7 +626,7 @@
 
 
 
-```js
+
 const workerService = require("../services/workerService");
 const workerMatchingService = require("../services/workerMatchingService");
 const Worker = require("../models/Worker");
@@ -1654,4 +1654,4 @@ exports.getCompletedJobs = async (
     next(err);
   }
 };
-```
+

@@ -78,6 +78,36 @@ router.put(
   workerController.selectServices
 );
 
+
+
+
+
+// NEW ROUTS ADD HUA AHI OK 
+
+
+// =====================================================
+// WORKER JOB STATISTICS
+// GET /api/workers/job-stats
+// =====================================================
+
+router.get(
+  "/job-stats",
+  protect,
+  authorizeRoles("worker"),
+  workerController.getJobStats
+);
+
+// =====================================================
+// WORKER COMPLETED JOBS
+// GET /api/workers/completed-jobs
+// =====================================================
+
+router.get(
+  "/completed-jobs",
+  protect,
+  authorizeRoles("worker"),
+  workerController.getCompletedJobs
+);
 // Get Booking Requests
 router.get(
   "/booking-requests",

@@ -548,3 +548,78 @@ exports.updateLocation = async (
     next(err);
   }
 };
+
+//NEW CONTROLLER ADD 
+// =====================================================
+// WORKER JOB STATISTICS
+// =====================================================
+
+exports.getJobStats = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const worker = await Worker.findById(
+      req.user.id
+    );
+
+    if (!worker) {
+      return res.status(404).json({
+        status: "error",
+        message: "Worker profile not found.",
+      });
+    }
+
+    const stats =
+      await workerMatchingService.getWorkerJobStats(
+        worker._id
+      );
+
+    return res.status(200).json({
+      status: "success",
+      data: stats,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// =====================================================
+// WORKER COMPLETED JOBS
+// =====================================================
+
+exports.getCompletedJobs = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const worker = await Worker.findById(
+      req.user.id
+    );
+
+    if (!worker) {
+      return res.status(404).json({
+        status: "error",
+        message: "Worker profile not found.",
+      });
+    }
+
+    const jobs =
+      await workerMatchingService.getWorkerCompletedJobs(
+        worker._id
+      );
+
+    return res.status(200).json({
+      status: "success",
+      data: jobs,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+
+

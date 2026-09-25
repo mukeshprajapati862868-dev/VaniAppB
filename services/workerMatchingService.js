@@ -340,7 +340,6 @@
 
 
 
-
 const mongoose = require("mongoose");
 const Worker = require("../models/Worker");
 const Booking = require("../models/Booking");
@@ -348,6 +347,10 @@ const BookingRequest = require("../models/BookingRequest");
 const Service = require("../models/Service");
 
 const MAX_DISTANCE_METERS = 5000; // 5 KM
+
+// =====================================================
+// FIND NEARBY WORKERS
+// =====================================================
 
 async function findNearbyWorkers(bookingLocation, serviceId) {
   if (
@@ -388,10 +391,16 @@ async function findNearbyWorkers(bookingLocation, serviceId) {
   }));
 }
 
+// =====================================================
+// DISTANCE CALCULATION
+// =====================================================
+
 function calculateDistance(lat1, lon1, lat2, lon2) {
   const R = 6371e3;
+
   const φ1 = (lat1 * Math.PI) / 180;
   const φ2 = (lat2 * Math.PI) / 180;
+
   const Δφ = ((lat2 - lat1) * Math.PI) / 180;
   const Δλ = ((lon2 - lon1) * Math.PI) / 180;
 
@@ -406,6 +415,10 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 
   return R * c;
 }
+
+// =====================================================
+// SEND BOOKING REQUESTS
+// =====================================================
 
 async function sendBookingRequests(bookingId, workers) {
   const booking = await Booking.findById(bookingId);
@@ -444,9 +457,33 @@ async function sendBookingRequests(bookingId, workers) {
         workerId: worker._id,
         userId: booking.userId,
         serviceId,
+
         distance: worker.distance,
+
         status: "SENT",
         sentAt: new Date(),
+
+        // Customer details
+        customerName: "",
+        customerPhone: "",
+        customerEmail: "",
+
+        customerAddress: {
+          houseNo: booking.address?.houseNo || "",
+          landmark: booking.address?.landmark || "",
+          city: booking.address?.city || "",
+          state: booking.address?.state || "",
+          pincode: booking.address?.pincode || "",
+          fullAddress: [
+            booking.address?.houseNo,
+            booking.address?.landmark,
+            booking.address?.city,
+            booking.address?.state,
+            booking.address?.pincode,
+          ]
+            .filter(Boolean)
+            .join(", "),
+        },
       });
     })
   );
@@ -454,22 +491,36 @@ async function sendBookingRequests(bookingId, workers) {
   return requests.filter((req) => req !== null);
 }
 
+// =====================================================
+// GET WORKER REQUESTS
+// =====================================================
+
 async function getWorkerRequests(workerId) {
   return await BookingRequest.find({
     workerId:
       typeof workerId === "string"
         ? new mongoose.Types.ObjectId(workerId)
         : workerId,
-    status: { $in: ["PENDING", "SENT"] },
+
+    status: {
+      $in: ["PENDING", "SENT"],
+    },
   })
     .populate("bookingId")
     .populate("userId")
     .populate("serviceId")
-    .sort({ createdAt: -1 });
+    .sort({
+      createdAt: -1,
+    });
 }
+
+// =====================================================
+// ACCEPT BOOKING REQUEST
+// =====================================================
 
 async function acceptBookingRequest(requestId, workerId) {
   const session = await BookingRequest.startSession();
+
   session.startTransaction();
 
   try {
@@ -482,11 +533,16 @@ async function acceptBookingRequest(requestId, workerId) {
       throw new Error("Request not found");
     }
 
-    if (request.status !== "SENT" && request.status !== "PENDING") {
+    if (
+      request.status !== "SENT" &&
+      request.status !== "PENDING"
+    ) {
       throw new Error("Request already processed");
     }
 
-    const booking = await Booking.findById(request.bookingId).session(session);
+    const booking = await Booking.findById(
+      request.bookingId
+    ).session(session);
 
     if (!booking) {
       throw new Error("Booking not found");
@@ -496,9 +552,12 @@ async function acceptBookingRequest(requestId, workerId) {
       booking.workerId &&
       booking.workerId.toString() !== workerId.toString()
     ) {
-      throw new Error("Booking already assigned to another worker");
+      throw new Error(
+        "Booking already assigned to another worker"
+      );
     }
 
+    // Already assigned to same worker
     if (
       booking.workerId &&
       booking.workerId.toString() === workerId.toString()
@@ -512,6 +571,7 @@ async function acceptBookingRequest(requestId, workerId) {
       };
     }
 
+    // Assign worker
     booking.workerId = workerId;
     booking.bookingStatus = "accepted";
 
@@ -519,6 +579,7 @@ async function acceptBookingRequest(requestId, workerId) {
       session,
     });
 
+    // Update request
     request.status = "ACCEPTED";
     request.acceptedAt = new Date();
 
@@ -526,12 +587,15 @@ async function acceptBookingRequest(requestId, workerId) {
       session,
     });
 
+    // Expire other workers' requests
     await BookingRequest.updateMany(
       {
         bookingId: request.bookingId,
+
         workerId: {
           $ne: workerId,
         },
+
         status: {
           $in: ["PENDING", "SENT"],
         },
@@ -560,6 +624,10 @@ async function acceptBookingRequest(requestId, workerId) {
   }
 }
 
+// =====================================================
+// REJECT BOOKING REQUEST
+// =====================================================
+
 async function rejectBookingRequest(requestId, workerId) {
   const request = await BookingRequest.findOne({
     _id: requestId,
@@ -570,7 +638,10 @@ async function rejectBookingRequest(requestId, workerId) {
     throw new Error("Request not found");
   }
 
-  if (request.status !== "SENT" && request.status !== "PENDING") {
+  if (
+    request.status !== "SENT" &&
+    request.status !== "PENDING"
+  ) {
     throw new Error("Request already processed");
   }
 
@@ -579,15 +650,19 @@ async function rejectBookingRequest(requestId, workerId) {
 
   await request.save();
 
-  const booking = await Booking.findById(request.bookingId);
+  const booking = await Booking.findById(
+    request.bookingId
+  );
 
   if (booking && !booking.workerId) {
-    const pendingRequests = await BookingRequest.countDocuments({
-      bookingId: request.bookingId,
-      status: {
-        $in: ["PENDING", "SENT"],
-      },
-    });
+    const pendingRequests =
+      await BookingRequest.countDocuments({
+        bookingId: request.bookingId,
+
+        status: {
+          $in: ["PENDING", "SENT"],
+        },
+      });
 
     if (pendingRequests === 0) {
       booking.bookingStatus = "SEARCHING_WORKER";
@@ -603,9 +678,14 @@ async function rejectBookingRequest(requestId, workerId) {
   return request;
 }
 
+// =====================================================
+// GET ASSIGNED BOOKING
+// =====================================================
+
 async function getAssignedBooking(workerId) {
   const booking = await Booking.findOne({
     workerId,
+
     bookingStatus: {
       $in: ["accepted", "started"],
     },
@@ -633,10 +713,72 @@ async function getAssignedBooking(workerId) {
 }
 
 // =====================================================
+// UPDATE WORKER COUNTERS
+//
+// IMPORTANT:
+// totalJobs = all bookings assigned to worker
+// completedJobs = all completed bookings of worker
+//
+// Atomic update is used so duplicate requests do not
+// accidentally increment counters multiple times.
+// =====================================================
+
+async function syncWorkerJobCounters(workerId) {
+  const workerObjectId =
+    typeof workerId === "string"
+      ? new mongoose.Types.ObjectId(workerId)
+      : workerId;
+
+  if (!workerObjectId) {
+    throw new Error("Worker ID is required");
+  }
+
+  const [totalJobs, completedJobs] =
+    await Promise.all([
+      Booking.countDocuments({
+        workerId: workerObjectId,
+      }),
+
+      Booking.countDocuments({
+        workerId: workerObjectId,
+        bookingStatus: "completed",
+      }),
+    ]);
+
+  const worker = await Worker.findByIdAndUpdate(
+    workerObjectId,
+    {
+      $set: {
+        totalJobs: totalJobs,
+        completedJobs: completedJobs,
+      },
+    },
+    {
+      new: true,
+      runValidators: true,
+    }
+  );
+
+  if (!worker) {
+    throw new Error("Worker not found");
+  }
+
+  console.log(
+    `WORKER COUNTERS UPDATED | worker=${workerObjectId} | totalJobs=${totalJobs} | completedJobs=${completedJobs}`
+  );
+
+  return worker;
+}
+
+// =====================================================
 // UPDATE BOOKING STATUS
 // =====================================================
 
-async function updateBookingStatus(bookingId, workerId, status) {
+async function updateBookingStatus(
+  bookingId,
+  workerId,
+  status
+) {
   const booking = await Booking.findOne({
     _id: bookingId,
     workerId,
@@ -664,13 +806,23 @@ async function updateBookingStatus(bookingId, workerId, status) {
   }
 
   // =====================================================
+  // PREVIOUS STATUS
+  // =====================================================
+
+  const previousStatus = booking.bookingStatus;
+
+  // =====================================================
   // PREVENT DUPLICATE COMPLETION
   // =====================================================
 
   if (
     normalizedStatus === "completed" &&
-    booking.bookingStatus === "completed"
+    previousStatus === "completed"
   ) {
+    // Even if old data counters are wrong,
+    // synchronize them safely.
+    await syncWorkerJobCounters(workerId);
+
     return booking;
   }
 
@@ -680,17 +832,25 @@ async function updateBookingStatus(bookingId, workerId, status) {
 
   if (normalizedStatus === "completed") {
     if (
-      booking.bookingStatus !== "accepted" &&
-      booking.bookingStatus !== "started"
+      previousStatus !== "accepted" &&
+      previousStatus !== "started"
     ) {
       throw new Error(
         "Only accepted or started bookings can be completed."
       );
     }
 
+    // Change booking status
     booking.bookingStatus = "completed";
 
     await booking.save();
+
+    // ===================================================
+    // IMPORTANT:
+    // Save completedJobs + totalJobs in Worker DB
+    // ===================================================
+
+    await syncWorkerJobCounters(workerId);
 
     console.log(
       `Booking ${booking.bookingId}: WORK COMPLETED by worker ${workerId}`
@@ -708,6 +868,12 @@ async function updateBookingStatus(bookingId, workerId, status) {
   await booking.save();
 
   // =====================================================
+  // SYNC COUNTERS AFTER NORMAL STATUS
+  // =====================================================
+
+  await syncWorkerJobCounters(workerId);
+
+  // =====================================================
   // CANCELLED BOOKING
   // =====================================================
 
@@ -717,10 +883,14 @@ async function updateBookingStatus(bookingId, workerId, status) {
 
     await booking.save();
 
+    // Worker counters must be recalculated because
+    // cancelled booking is no longer assigned to worker.
+    await syncWorkerJobCounters(workerId);
+
     try {
       const serviceId =
         booking.serviceDetails?.serviceId ||
-        booking.products[0]?.productId;
+        booking.products?.[0]?.productId;
 
       if (
         serviceId &&
@@ -782,6 +952,7 @@ async function getWorkerJobStats(workerId) {
 
     Booking.countDocuments({
       workerId: workerObjectId,
+
       bookingStatus: {
         $in: ["accepted", "started"],
       },
@@ -799,6 +970,24 @@ async function getWorkerJobStats(workerId) {
       paymentStatus: "pending",
     }),
   ]);
+
+  // =====================================================
+  // IMPORTANT:
+  // Also keep Worker document synchronized.
+  // =====================================================
+
+  await Worker.findByIdAndUpdate(
+    workerObjectId,
+    {
+      $set: {
+        totalJobs,
+        completedJobs,
+      },
+    },
+    {
+      new: false,
+    }
+  );
 
   return {
     totalJobs,
@@ -819,7 +1008,7 @@ async function getWorkerCompletedJobs(workerId) {
       ? new mongoose.Types.ObjectId(workerId)
       : workerId;
 
-  return await Booking.find({
+  const jobs = await Booking.find({
     workerId: workerObjectId,
     bookingStatus: "completed",
   })
@@ -829,7 +1018,41 @@ async function getWorkerCompletedJobs(workerId) {
       updatedAt: -1,
     })
     .lean();
+
+  return jobs;
 }
+
+// =====================================================
+// SYNC ALL WORKER JOB COUNTERS
+//
+// This is useful for old/existing workers whose
+// Worker.totalJobs / completedJobs are still 0.
+// =====================================================
+
+async function syncAllWorkerJobCounters() {
+  const workers = await Worker.find({
+    role: "worker",
+  }).select("_id");
+
+  let updated = 0;
+
+  for (const worker of workers) {
+    await syncWorkerJobCounters(worker._id);
+    updated++;
+  }
+
+  console.log(
+    `ALL WORKER COUNTERS SYNCHRONIZED: ${updated}`
+  );
+
+  return {
+    updatedWorkers: updated,
+  };
+}
+
+// =====================================================
+// GET WORKER LOCATION
+// =====================================================
 
 async function getWorkerLocation(workerId) {
   const worker = await Worker.findById(workerId);
@@ -840,6 +1063,10 @@ async function getWorkerLocation(workerId) {
 
   return worker.location;
 }
+
+// =====================================================
+// UPDATE WORKER LOCATION
+// =====================================================
 
 async function updateWorkerLocation(
   workerId,
@@ -854,13 +1081,20 @@ async function updateWorkerLocation(
 
   worker.location = {
     type: "Point",
-    coordinates: [longitude, latitude],
+    coordinates: [
+      Number(longitude),
+      Number(latitude),
+    ],
   };
 
   await worker.save();
 
   return worker;
 }
+
+// =====================================================
+// EXPORTS
+// =====================================================
 
 module.exports = {
   findNearbyWorkers,
@@ -873,7 +1107,11 @@ module.exports = {
   getWorkerLocation,
   updateWorkerLocation,
 
-  // NEW
+  // JOB STATISTICS
   getWorkerJobStats,
   getWorkerCompletedJobs,
+
+  // COUNTER SYNC
+  syncWorkerJobCounters,
+  syncAllWorkerJobCounters,
 };

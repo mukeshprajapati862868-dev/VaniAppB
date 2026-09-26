@@ -1068,6 +1068,58 @@ async function getWorkerLocation(workerId) {
 // UPDATE WORKER LOCATION
 // =====================================================
 
+// =====================================================
+// GET WORKER REQUEST HISTORY (Accepted Requests)
+// =====================================================
+async function getWorkerRequestHistory(workerId) {
+  const workerObjectId =
+    typeof workerId === "string"
+      ? new mongoose.Types.ObjectId(workerId)
+      : workerId;
+
+  const history = await Booking.find({
+    workerId: workerObjectId,
+    bookingStatus: { $in: ["accepted", "started", "completed"] },
+  })
+    .populate("userId", "name phone email")
+    .sort({ updatedAt: -1 })
+    .lean();
+
+  // Clean response for frontend
+  return history.map((item) => {
+    const user = item.userId || {};
+    const address = item.address || {};
+
+    return {
+      _id: item._id,
+      customerName: user.name || item.customerName || "Customer",
+      customerPhone: user.phone || item.customerPhone || "N/A",
+      customerEmail: user.email || item.customerEmail || "N/A",
+      fullAddress:
+        address.fullAddress ||
+        [
+          address.houseNo,
+          address.landmark,
+          address.city,
+          address.state,
+          address.pincode,
+        ]
+          .filter(Boolean)
+          .join(", ") ||
+        "N/A",
+      serviceName:
+        item.serviceDetails?.serviceName ||
+        item.serviceName ||
+        "Service",
+      totalAmount: item.totalAmount || 0,
+      acceptedAt: item.updatedAt || item.createdAt,
+      bookingStatus: item.bookingStatus,
+    };
+  });
+}
+
+
+
 async function updateWorkerLocation(
   workerId,
   latitude,

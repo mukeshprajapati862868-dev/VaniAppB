@@ -1158,12 +1158,13 @@ module.exports = {
   updateBookingStatus,
   getWorkerLocation,
   updateWorkerLocation,
-
   // JOB STATISTICS
   getWorkerJobStats,
   getWorkerCompletedJobs,
-
   // COUNTER SYNC
   syncWorkerJobCounters,
   syncAllWorkerJobCounters,
+
+  // ★★★ YEH LINE ADD KARO ★★★
+  getWorkerRequestHistory,
 };

@@ -956,6 +956,33 @@ exports.updateLocation = async (
 // WORKER JOB STATISTICS
 // =====================================================
 
+
+
+// =====================================================
+// WORKER REQUEST HISTORY
+// =====================================================
+exports.getRequestHistory = async (req, res, next) => {
+  try {
+    const worker = await Worker.findById(req.user.id);
+    if (!worker) {
+      return res.status(404).json({
+        status: "error",
+        message: "Worker profile not found.",
+      });
+    }
+
+    const history = await workerMatchingService.getWorkerRequestHistory(
+      worker._id
+    );
+
+    return res.status(200).json({
+      status: "success",
+      data: history,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
 exports.getJobStats = async (
   req,
   res,

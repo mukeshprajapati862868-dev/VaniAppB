@@ -326,6 +326,19 @@ router.patch(
   workerController.updateLocation
 );
 
+
+
+// =====================================================
+// WORKER REQUEST HISTORY
+// GET /api/workers/request-history
+// =====================================================
+router.get(
+  "/request-history",
+  protect,
+  roleCheck("worker"),
+  workerController.getRequestHistory
+);
+
 // =====================================================
 // EXPORT ROUTER
 // =====================================================

@@ -56,4 +56,17 @@ router.patch(
   bookingController.updateStatus,
 );
 
+/**
+ * UPDATE PAYMENT STATUS
+ * PATCH /api/bookings/:id/payment
+ */
+router.patch(
+  "/:id/payment",
+  protect,
+  authorizeRoles("admin"),
+  bookingController.updatePaymentStatus
+);
+
+
+
 module.exports = router;

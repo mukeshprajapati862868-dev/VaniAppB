@@ -1154,4 +1154,81 @@ exports.getCompletedJobs = async (
     next(err);
   }
 };
+// =====================================================
+// MARK PAYMENT PAID
+// PATCH /api/workers/bookings/:bookingId/payment
+// =====================================================
 
+exports.markBookingPayment = async (req, res, next) => {
+  try {
+    const { bookingId } = req.params;
+    const {
+      paymentStatus = "paid",
+      paymentMethod,
+      paidAmount,
+    } = req.body || {};
+
+    const worker = await Worker.findById(req.user.id);
+
+    if (!worker) {
+      return res.status(404).json({
+        status: "error",
+        message: "Worker profile not found.",
+      });
+    }
+
+    const Booking = require("../models/Booking");
+
+    const normalized = String(paymentStatus).trim().toLowerCase();
+    if (!["pending", "paid", "failed"].includes(normalized)) {
+      return res.status(400).json({
+        status: "error",
+        message: "paymentStatus must be pending, paid or failed.",
+      });
+    }
+
+    const update = {
+      paymentStatus: normalized,
+    };
+
+    if (paymentMethod) {
+      update.paymentMethod = paymentMethod;
+    }
+
+    if (paidAmount !== undefined && paidAmount !== null) {
+      update.paidAmount = Number(paidAmount);
+    }
+
+    let booking = await Booking.findOneAndUpdate(
+      {
+        _id: bookingId,
+        workerId: worker._id,
+      },
+      { $set: update },
+      { new: true }
+    );
+
+    if (!booking) {
+      booking = await Booking.findByIdAndUpdate(
+        bookingId,
+        { $set: update },
+        { new: true }
+      );
+    }
+
+    if (!booking) {
+      return res.status(404).json({
+        status: "error",
+        message: "Booking not found.",
+      });
+    }
+
+    return res.status(200).json({
+      status: "success",
+      message: "Payment status updated.",
+      data: booking,
+    });
+  } catch (err) {
+    next(err);
+  }
+};

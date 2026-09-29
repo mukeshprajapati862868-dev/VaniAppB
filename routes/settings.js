@@ -1,5 +1,5 @@
 // admin routes file me
-const settingsController = require("../controllers/settingsController");
+const settingsController = require("../controllers/settings");
 
 router.get(
   "/settings",

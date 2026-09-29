@@ -314,6 +314,29 @@ router.patch(
   workerController.updateBookingStatus
 );
 
+
+// =====================================================
+// UPDATE BOOKING STATUS
+// =====================================================
+
+router.patch(
+  "/bookings/:bookingId/status",
+  protect,
+  roleCheck("worker"),
+  workerController.updateBookingStatus
+);
+
+// =====================================================
+// MARK PAYMENT PAID  ← NAYA (404 fix)
+// PATCH /api/workers/bookings/:bookingId/payment
+// =====================================================
+
+router.patch(
+  "/bookings/:bookingId/payment",
+  protect,
+  roleCheck("worker"),
+  workerController.markBookingPayment
+);
 // =====================================================
 // WORKER LOCATION
 // =====================================================

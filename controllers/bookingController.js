@@ -982,6 +982,11 @@ async function updateStatus(req, res, next) {
   }
 }
 
+
+
+
+
+
 /**
  * ============================================================
  * ADMIN - GET ALL BOOKINGS
@@ -1002,14 +1007,77 @@ async function adminAll(req, res, next) {
 }
 
 /**
+//  * ============================================================
+//  * EXPORT
+//  * ============================================================
+//  */
+// module.exports = {
+//   createBooking,
+//   listBookings,
+//   getBooking,
+//   updateStatus,
+//   adminAll,
+// };
+
+
+
+/**
  * ============================================================
- * EXPORT
+ * UPDATE PAYMENT STATUS (Admin / system)
  * ============================================================
  */
+async function updatePaymentStatus(req, res, next) {
+  try {
+    const { paymentStatus, paymentMethod } = req.body || {};
+
+    if (!paymentStatus) {
+      return res.status(400).json({
+        status: "error",
+        message: "paymentStatus is required.",
+      });
+    }
+
+    const normalized = String(paymentStatus).trim().toLowerCase();
+    if (!["pending", "paid", "failed"].includes(normalized)) {
+      return res.status(400).json({
+        status: "error",
+        message: "paymentStatus must be pending, paid or failed.",
+      });
+    }
+
+    const Booking = require("../models/Booking");
+
+    const update = { paymentStatus: normalized };
+    if (paymentMethod) update.paymentMethod = paymentMethod;
+
+    const booking = await Booking.findByIdAndUpdate(
+      req.params.id,
+      { $set: update },
+      { new: true }
+    );
+
+    if (!booking) {
+      return res.status(404).json({
+        status: "error",
+        message: "Booking not found.",
+      });
+    }
+
+    return res.json({
+      status: "success",
+      message: "Payment status updated.",
+      data: booking,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   createBooking,
   listBookings,
   getBooking,
   updateStatus,
   adminAll,
+  updatePaymentStatus, // ← add in exports
 };

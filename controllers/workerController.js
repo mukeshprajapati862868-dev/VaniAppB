@@ -803,58 +803,160 @@ exports.getAssignedBooking =
 // UPDATE BOOKING STATUS
 // =====================================================
 
-exports.updateBookingStatus =
-  async (
-    req,
-    res,
-    next
-  ) => {
-    try {
-      const {
-        bookingId,
-      } = req.params;
+// exports.updateBookingStatus =
+//   async (
+//     req,
+//     res,
+//     next
+//   ) => {
+//     try {
+//       const {
+//         bookingId,
+//       } = req.params;
 
-      const {
-        status,
-      } = req.body;
+//       const {
+//         status,
+//       } = req.body;
 
-      if (!status) {
-        return res.status(400).json({
-          status: "error",
-          message:
-            "Status is required.",
-        });
-      }
+//       if (!status) {
+//         return res.status(400).json({
+//           status: "error",
+//           message:
+//             "Status is required.",
+//         });
+//       }
 
-      const worker =
-        await Worker.findById(
-          req.user.id
-        );
+//       const worker =
+//         await Worker.findById(
+//           req.user.id
+//         );
 
-      if (!worker) {
-        return res.status(404).json({
-          status: "error",
-          message:
-            "Worker profile not found.",
-        });
-      }
+//       if (!worker) {
+//         return res.status(404).json({
+//           status: "error",
+//           message:
+//             "Worker profile not found.",
+//         });
+//       }
 
-      const booking =
-        await workerMatchingService.updateBookingStatus(
-          bookingId,
-          worker._id,
-          status
-        );
+//       const booking =
+//         await workerMatchingService.updateBookingStatus(
+//           bookingId,
+//           worker._id,
+//           status
+//         );
 
-      return res.status(200).json({
-        status: "success",
-        data: booking,
+//       return res.status(200).json({
+//         status: "success",
+//         data: booking,
+//       });
+//     } catch (err) {
+//       next(err);
+//     }
+//   };
+
+
+// =====================================================
+// UPDATE BOOKING STATUS  (+ optional paymentStatus)
+// =====================================================
+
+exports.updateBookingStatus = async (req, res, next) => {
+  try {
+    const { bookingId } = req.params;
+
+    const {
+      status,
+      paymentStatus,
+      paymentMethod,
+      paidAmount,
+    } = req.body || {};
+
+    if (!status && !paymentStatus) {
+      return res.status(400).json({
+        status: "error",
+        message: "Status or paymentStatus is required.",
       });
-    } catch (err) {
-      next(err);
     }
-  };
 
+    const worker = await Worker.findById(req.user.id);
+
+    if (!worker) {
+      return res.status(404).json({
+        status: "error",
+        message: "Worker profile not found.",
+      });
+    }
+
+    let booking = null;
+
+    // 1) bookingStatus update (purana flow same)
+    if (status) {
+      booking = await workerMatchingService.updateBookingStatus(
+        bookingId,
+        worker._id,
+        status
+      );
+    }
+
+    // 2) paymentStatus update (ye pehle missing tha)
+    if (paymentStatus || paymentMethod) {
+      const Booking = require("../models/Booking");
+
+      const paymentUpdate = {};
+
+      if (paymentStatus) {
+        const normalized = String(paymentStatus).trim().toLowerCase();
+        if (!["pending", "paid", "failed"].includes(normalized)) {
+          return res.status(400).json({
+            status: "error",
+            message: "paymentStatus must be pending, paid or failed.",
+          });
+        }
+        paymentUpdate.paymentStatus = normalized;
+      }
+
+      if (paymentMethod) {
+        paymentUpdate.paymentMethod = paymentMethod;
+      }
+
+      if (paidAmount !== undefined && paidAmount !== null) {
+        paymentUpdate.paidAmount = Number(paidAmount);
+      }
+
+      booking = await Booking.findOneAndUpdate(
+        {
+          _id: bookingId,
+          workerId: worker._id,
+        },
+        { $set: paymentUpdate },
+        { new: true }
+      );
+
+      if (!booking) {
+        // fallback without workerId check (agar workerId null ho kabhi)
+        booking = await Booking.findByIdAndUpdate(
+          bookingId,
+          { $set: paymentUpdate },
+          { new: true }
+        );
+      }
+    }
+
+    if (!booking) {
+      return res.status(404).json({
+        status: "error",
+        message: "Booking not found.",
+      });
+    }
+
+    return res.status(200).json({
+      status: "success",
+      data: booking,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
 // =====================================================
 // UPDATE LOCATION
 // =====================================================

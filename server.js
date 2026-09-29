@@ -524,6 +524,7 @@ const bookingRoutes = require("./routes/bookings");
 const userRoutes = require("./routes/users");
 const adminRoutes = require("./routes/admin");
 const serviceRoutes = require("./routes/serviceRoutes");
+const settingsRoutes = require("./routes/settings");
 
 // WORKER ROUTE ADD
 const workerRoutes = require("./routes/workerRoutes");
@@ -750,6 +751,7 @@ app.use(
     "/api/admin",
     adminRoutes
 );
+app.use("/api/admin/settings", settings);
 
 // ===============================
 // WORKER API ROUTES

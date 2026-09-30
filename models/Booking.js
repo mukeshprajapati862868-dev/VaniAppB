@@ -38,13 +38,14 @@ const bookingSchema = new mongoose.Schema(
       },
     ],
 
-    address: {
-      houseNo: String,
-      landmark: String,
-      city: String,
-      state: String,
-      pincode: String,
-    },
+   address: {
+  houseNo: String,
+  landmark: String,
+  city: String,
+  state: String,
+  pincode: String,
+  fullAddress: String,   // ← ADD THIS
+},
 
     addressId: {
       type: mongoose.Schema.Types.ObjectId,

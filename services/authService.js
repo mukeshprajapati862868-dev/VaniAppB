@@ -2504,11 +2504,8 @@ async function logout(
 // =====================================================
 
 function createEmailTransporter() {
-  const emailUser =
-    process.env.EMAIL_USER;
-
-  const emailPass =
-    process.env.EMAIL_PASS;
+  const emailUser = process.env.EMAIL_USER;
+  const emailPass = process.env.EMAIL_PASS;
 
   if (!emailUser || !emailPass) {
     throw {
@@ -2518,51 +2515,35 @@ function createEmailTransporter() {
     };
   }
 
-  const emailHost =
-    process.env.EMAIL_HOST ||
-    "smtp.gmail.com";
+  return nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false,
+    requireTLS: true,
 
-  const emailPort =
-    Number(process.env.EMAIL_PORT) || 587;
+    family: 4,
 
-  const secure =
-    String(process.env.EMAIL_SECURE).toLowerCase() ===
-    "true";
+    lookup: (hostname, options, callback) => {
+      dns.lookup(
+        hostname,
+        {
+          family: 4,
+          all: false,
+        },
+        callback
+      );
+    },
 
-//   return nodemailer.createTransport({
-//     host: emailHost,
-//     port: emailPort,
-//     secure: secure,
+    auth: {
+      user: emailUser,
+      pass: emailPass,
+    },
 
-//     auth: {
-//       user: emailUser,
-//       pass: emailPass,
-//     },
-
-//     connectionTimeout: 30000,
-//     greetingTimeout: 30000,
-//     socketTimeout: 30000,
-//   });
-// }
-
-return nodemailer.createTransport({
-  host: emailHost,
-  port: emailPort,
-  secure: secure,
-  requireTLS: emailPort === 587,
-
-  // Force IPv4 on Render to avoid Gmail IPv6 ENETUNREACH
-  family: 4,
-
-  auth: {
-    user: emailUser,
-    pass: emailPass,
-  },
-
-  connectionTimeout: 30000,
-  greetingTimeout: 30000,
-  socketTimeout: 30000,
-});
+    connectionTimeout: 30000,
+    greetingTimeout: 30000,
+    socketTimeout: 30000,
+    dnsTimeout: 30000,
+  });
 }
 // =====================================================
 // SEND PASSWORD RESET

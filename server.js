@@ -529,6 +529,7 @@ const userRoutes = require("./routes/users");
 const adminRoutes = require("./routes/admin");
 const serviceRoutes = require("./routes/serviceRoutes");
 const workerRoutes = require("./routes/workerRoutes");
+const chatRoutes = require("./routes/chatRoutes");
 
 // Settings routes (GET/PUT /api/admin/settings)
 const settingsRoutes = require("./routes/settingsRoutes");
@@ -687,6 +688,11 @@ app.use((req, res, next) => {
     error: "Endpoint not found",
   });
 });
+
+//=============ChatBot integrate start==============
+app.use("/api/chat", chatRoutes);
+//========chat bot close=============
+
 
 // ===============================
 // GLOBAL ERROR HANDLER

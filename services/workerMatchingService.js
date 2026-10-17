@@ -176,11 +176,119 @@ async function getWorkerRequests(workerId) {
 // ACCEPT BOOKING REQUEST
 // =====================================================
 
+// async function acceptBookingRequest(requestId, workerId) {
+//   const session = await BookingRequest.startSession();
+
+//   session.startTransaction();
+
+//   try {
+//     const request = await BookingRequest.findOne({
+//       _id: requestId,
+//       workerId,
+//     }).session(session);
+
+//     if (!request) {
+//       throw new Error("Request not found");
+//     }
+
+//     if (
+//       request.status !== "SENT" &&
+//       request.status !== "PENDING"
+//     ) {
+//       throw new Error("Request already processed");
+//     }
+
+//     const booking = await Booking.findById(
+//       request.bookingId
+//     ).session(session);
+
+//     if (!booking) {
+//       throw new Error("Booking not found");
+//     }
+
+//     if (
+//       booking.workerId &&
+//       booking.workerId.toString() !== workerId.toString()
+//     ) {
+//       throw new Error(
+//         "Booking already assigned to another worker"
+//       );
+//     }
+
+//     // Already assigned to same worker
+//     if (
+//       booking.workerId &&
+//       booking.workerId.toString() === workerId.toString()
+//     ) {
+//       await session.commitTransaction();
+//       session.endSession();
+
+//       return {
+//         booking,
+//         request,
+//       };
+//     }
+
+//     // Assign worker
+//     booking.workerId = workerId;
+//     booking.bookingStatus = "accepted";
+
+//     await booking.save({
+//       session,
+//     });
+
+//     // Update request
+//     request.status = "ACCEPTED";
+//     request.acceptedAt = new Date();
+
+//     await request.save({
+//       session,
+//     });
+
+//     // Expire other workers' requests
+//     await BookingRequest.updateMany(
+//       {
+//         bookingId: request.bookingId,
+
+//         workerId: {
+//           $ne: workerId,
+//         },
+
+//         status: {
+//           $in: ["PENDING", "SENT"],
+//         },
+//       },
+//       {
+//         status: "EXPIRED",
+//         expiredAt: new Date(),
+//       },
+//       {
+//         session,
+//       }
+//     );
+
+//     await session.commitTransaction();
+//     session.endSession();
+
+//     return {
+//       booking,
+//       request,
+//     };
+//   } catch (error) {
+//     await session.abortTransaction();
+//     session.endSession();
+
+//     throw error;
+//   }
+// }
+
+
+// =====================================================
+// ACCEPT BOOKING REQUEST
+// =====================================================
 async function acceptBookingRequest(requestId, workerId) {
   const session = await BookingRequest.startSession();
-
   session.startTransaction();
-
   try {
     const request = await BookingRequest.findOne({
       _id: requestId,
@@ -206,6 +314,7 @@ async function acceptBookingRequest(requestId, workerId) {
       throw new Error("Booking not found");
     }
 
+    // Agar pehle se kisi aur worker ne accept kar liya hai
     if (
       booking.workerId &&
       booking.workerId.toString() !== workerId.toString()
@@ -222,45 +331,55 @@ async function acceptBookingRequest(requestId, workerId) {
     ) {
       await session.commitTransaction();
       session.endSession();
-
       return {
         booking,
         request,
       };
     }
 
+    // Extra safety: check if any other request is already ACCEPTED
+    const alreadyAccepted = await BookingRequest.findOne({
+      bookingId: request.bookingId,
+      status: "ACCEPTED",
+    }).session(session);
+
+    if (alreadyAccepted) {
+      throw new Error(
+        "This booking has already been accepted by another worker"
+      );
+    }
+
     // Assign worker
     booking.workerId = workerId;
     booking.bookingStatus = "accepted";
-
     await booking.save({
       session,
     });
 
-    // Update request
+    // Update current request
     request.status = "ACCEPTED";
     request.acceptedAt = new Date();
-
     await request.save({
       session,
     });
 
-    // Expire other workers' requests
+    // Expire / Cancel all other workers' requests
     await BookingRequest.updateMany(
       {
         bookingId: request.bookingId,
-
         workerId: {
           $ne: workerId,
         },
-
         status: {
           $in: ["PENDING", "SENT"],
         },
       },
       {
-        status: "EXPIRED",
-        expiredAt: new Date(),
+        $set: {
+          status: "EXPIRED",
+          expiredAt: new Date(),
+          cancelReason: "Accepted by another worker",
+        },
       },
       {
         session,
@@ -277,11 +396,9 @@ async function acceptBookingRequest(requestId, workerId) {
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
-
     throw error;
   }
 }
-
 // =====================================================
 // REJECT BOOKING REQUEST
 // =====================================================

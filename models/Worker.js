@@ -197,6 +197,19 @@ const workerSchema = new mongoose.Schema(
 // GEO LOCATION INDEX
 // =====================================================
 
+
+// =====================================================
+// PUSH NOTIFICATION TOKEN
+// =====================================================
+expoPushToken: {
+  type: String,
+  default: "",
+  trim: true,
+},
+
+
+
+    
 workerSchema.index({
   location: "2dsphere",
 });

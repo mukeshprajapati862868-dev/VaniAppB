@@ -1,4 +1,4 @@
-const { sendPushNotificationToMany } = require("../utils/sendPushNotification");
+// const { sendPushNotificationToMany } = require("../utils/sendPushNotification");
 const bookingService = require("../services/bookingService");
 const { getLocationFromRequest } = require("../utils/location");
 const mongoose = require("mongoose");
@@ -327,18 +327,13 @@ async function createBooking(req, res, next) {
       // ======================================================
       // 1. FIND AVAILABLE + APPROVED WORKERS
       // ======================================================
-      // const availableWorkers =
-      //   await Worker.find({
-      //     availabilityStatus: "ON",
-      //     status: "approved",
-      //   }).select("_id");
-
-
       const availableWorkers =
-  await Worker.find({
-    availabilityStatus: "ON",
-    status: "approved",
-  }).select("_id expoPushToken");
+        await Worker.find({
+          availabilityStatus: "ON",
+          status: "approved",
+        }).select("_id");
+
+
 
 
       

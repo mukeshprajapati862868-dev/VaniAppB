@@ -327,11 +327,21 @@ async function createBooking(req, res, next) {
       // ======================================================
       // 1. FIND AVAILABLE + APPROVED WORKERS
       // ======================================================
+      // const availableWorkers =
+      //   await Worker.find({
+      //     availabilityStatus: "ON",
+      //     status: "approved",
+      //   }).select("_id");
+
+
       const availableWorkers =
-        await Worker.find({
-          availabilityStatus: "ON",
-          status: "approved",
-        }).select("_id");
+  await Worker.find({
+    availabilityStatus: "ON",
+    status: "approved",
+  }).select("_id expoPushToken");
+
+
+      
 
       console.log(
         `Found ${availableWorkers.length} available workers`

@@ -198,14 +198,6 @@ const workerSchema = new mongoose.Schema(
 // =====================================================
 
 
-// =====================================================
-// PUSH NOTIFICATION TOKEN
-// =====================================================
-expoPushToken: {
-  type: String,
-  default: "",
-  trim: true,
-},
 
 
 

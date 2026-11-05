@@ -1917,101 +1917,41 @@ async function logout(userId, refreshToken) {
 // =====================================================
 
 async function createEmailTransporter() {
-  const emailUser = (
-    process.env.EMAIL_USER || ""
-  ).trim();
-
-  const emailPass = (
-    process.env.EMAIL_PASS || ""
-  ).replace(/\s/g, "");
+  const emailUser = (process.env.EMAIL_USER || "").trim();
+  const emailPass = (process.env.EMAIL_PASS || "").replace(/\s/g, "");
 
   if (!emailUser || !emailPass) {
-    throw {
-      statusCode: 500,
-      message:
-        "Email configuration is missing. Please configure EMAIL_USER and EMAIL_PASS in the server environment.",
-    };
+    throw new Error("EMAIL_USER or EMAIL_PASS is missing");
   }
 
-  const emailHost =
-    process.env.EMAIL_HOST || "smtp.gmail.com";
+  const emailHost = process.env.EMAIL_HOST || "smtp.gmail.com";
+  const emailPort = Number(process.env.EMAIL_PORT) || 587;
 
-  // ===================================================
-  // RESOLVE ONLY IPV4 ADDRESS
-  // ===================================================
-
-  let ipv4Addresses;
-
-  try {
-    ipv4Addresses = await dns.resolve4(emailHost);
-  } catch (dnsError) {
-    console.error(
-      "Gmail IPv4 DNS resolution failed:",
-      dnsError.message
-    );
-
-    throw {
-      statusCode: 500,
-      message:
-        "Unable to resolve Gmail IPv4 address. Please check server DNS connectivity.",
-    };
+  if (![465, 587].includes(emailPort)) {
+    throw new Error("Invalid Gmail SMTP port: " + emailPort);
   }
 
-  if (!ipv4Addresses || ipv4Addresses.length === 0) {
-    throw {
-      statusCode: 500,
-      message: "Gmail IPv4 address not found.",
-    };
-  }
-
-  const gmailIPv4 = ipv4Addresses[0];
-
-  console.log(
-    "Gmail SMTP IPv4 selected:",
-    gmailIPv4
-  );
-
-  // ===================================================
-  // SMTP PORT
-  // Recommended: 465
-  // ===================================================
-
-  const emailPort =
-    Number(process.env.EMAIL_PORT) || 465;
-
-  const secure = emailPort === 465;
-
-  // ===================================================
-  // CREATE NODEMAILER TRANSPORTER
-  // ===================================================
+  console.log("SMTP HOST:", emailHost);
+  console.log("SMTP PORT:", emailPort);
+  console.log("SMTP SECURE:", emailPort === 465);
 
   return nodemailer.createTransport({
-    host: gmailIPv4,
+    host: emailHost,
     port: emailPort,
-    secure,
+    secure: emailPort === 465,
 
-    ...(emailPort === 587
-      ? { requireTLS: true }
-      : {}),
+    ...(emailPort === 587 ? { requireTLS: true } : {}),
 
     auth: {
       user: emailUser,
-      pass: emailPass,
+      pass: emailPass
     },
 
-    // Keep original Gmail hostname for TLS certificate check.
-    tls: {
-      servername: emailHost,
-      minVersion: "TLSv1.2",
-    },
-
-    connectionTimeout: 30000,
-    greetingTimeout: 30000,
-    socketTimeout: 60000,
-    dnsTimeout: 15000,
+    connectionTimeout: 20000,
+    greetingTimeout: 20000,
+    socketTimeout: 30000
   });
 }
-
 // =====================================================
 // CLEAR PASSWORD RESET TOKEN
 // =====================================================

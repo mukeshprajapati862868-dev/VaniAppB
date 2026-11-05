@@ -1572,6 +1572,9 @@ const { nanoid } = require("nanoid");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 
+// Force Gmail SMTP DNS lookup to IPv4.
+const dns = require("dns").promises;
+
 // =====================================================
 // GENERATE JWT TOKEN
 // =====================================================
@@ -1910,19 +1913,16 @@ async function logout(userId, refreshToken) {
 }
 
 // =====================================================
-// CREATE GMAIL SMTP TRANSPORTER
+// CREATE GMAIL SMTP TRANSPORTER - IPV4 FIX
 // =====================================================
 
-function createEmailTransporter() {
+async function createEmailTransporter() {
   const emailUser = (
     process.env.EMAIL_USER || ""
   ).trim();
 
-  // Support both EMAIL_PASS and EMAIL_PASSWORD.
   const emailPass = (
-    process.env.EMAIL_PASS ||
-    process.env.EMAIL_PASS ||
-    ""
+    process.env.EMAIL_PASS || ""
   ).replace(/\s/g, "");
 
   if (!emailUser || !emailPass) {
@@ -1936,19 +1936,60 @@ function createEmailTransporter() {
   const emailHost =
     process.env.EMAIL_HOST || "smtp.gmail.com";
 
-  const emailPort =
-    Number(process.env.EMAIL_PORT) || 587;
+  // ===================================================
+  // RESOLVE ONLY IPV4 ADDRESS
+  // ===================================================
 
-  const secure =
-    String(process.env.EMAIL_SECURE || "").toLowerCase() === "true" ||
-    emailPort === 465;
+  let ipv4Addresses;
+
+  try {
+    ipv4Addresses = await dns.resolve4(emailHost);
+  } catch (dnsError) {
+    console.error(
+      "Gmail IPv4 DNS resolution failed:",
+      dnsError.message
+    );
+
+    throw {
+      statusCode: 500,
+      message:
+        "Unable to resolve Gmail IPv4 address. Please check server DNS connectivity.",
+    };
+  }
+
+  if (!ipv4Addresses || ipv4Addresses.length === 0) {
+    throw {
+      statusCode: 500,
+      message: "Gmail IPv4 address not found.",
+    };
+  }
+
+  const gmailIPv4 = ipv4Addresses[0];
+
+  console.log(
+    "Gmail SMTP IPv4 selected:",
+    gmailIPv4
+  );
+
+  // ===================================================
+  // SMTP PORT
+  // Recommended: 465
+  // ===================================================
+
+  const emailPort =
+    Number(process.env.EMAIL_PORT) || 465;
+
+  const secure = emailPort === 465;
+
+  // ===================================================
+  // CREATE NODEMAILER TRANSPORTER
+  // ===================================================
 
   return nodemailer.createTransport({
-    host: emailHost,
+    host: gmailIPv4,
     port: emailPort,
     secure,
 
-    // Use TLS for Gmail port 587.
     ...(emailPort === 587
       ? { requireTLS: true }
       : {}),
@@ -1958,9 +1999,16 @@ function createEmailTransporter() {
       pass: emailPass,
     },
 
+    // Keep original Gmail hostname for TLS certificate check.
+    tls: {
+      servername: emailHost,
+      minVersion: "TLSv1.2",
+    },
+
     connectionTimeout: 30000,
     greetingTimeout: 30000,
-    socketTimeout: 30000,
+    socketTimeout: 60000,
+    dnsTimeout: 15000,
   });
 }
 
@@ -2020,13 +2068,13 @@ async function sendPasswordReset(email) {
 
   // ===================================================
   // CREATE EMAIL TRANSPORTER
-  // Check configuration before creating reset token.
   // ===================================================
 
   let transporter;
 
   try {
-    transporter = createEmailTransporter();
+    // IMPORTANT: createEmailTransporter is now async.
+    transporter = await createEmailTransporter();
   } catch (error) {
     console.error(
       "Email transporter configuration error:",
@@ -2087,7 +2135,7 @@ async function sendPasswordReset(email) {
     throw {
       statusCode: 500,
       message:
-        "Gmail SMTP connection failed. Please check EMAIL_USER, EMAIL_PASS and Gmail App Password settings.",
+        "Gmail SMTP connection failed. Please check Gmail SMTP connectivity, EMAIL_USER and EMAIL_PASS.",
     };
   }
 
@@ -2341,6 +2389,10 @@ Vani Systems Team
       message:
         "Unable to send password reset email. Please check the Gmail SMTP configuration and App Password.",
     };
+  } finally {
+    if (transporter) {
+      transporter.close();
+    }
   }
 
   // Return raw token to controller.
@@ -2509,10 +2561,6 @@ module.exports = {
   getProfile,
   updateUserProfile,
 };
-
-
-
-
 
 
 

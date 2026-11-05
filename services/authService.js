@@ -1921,7 +1921,7 @@ function createEmailTransporter() {
   // Support both EMAIL_PASS and EMAIL_PASSWORD.
   const emailPass = (
     process.env.EMAIL_PASS ||
-    process.env.EMAIL_PASSWORD ||
+    process.env.EMAIL_PASS ||
     ""
   ).replace(/\s/g, "");
 

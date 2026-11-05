@@ -1,573 +1,3 @@
-// // const User = require("../models/User");
-// // const jwt = require("jsonwebtoken");
-// // const bcrypt = require("bcryptjs");
-// // const { nanoid } = require("nanoid");
-// // const crypto = require("crypto");
-
-// // // =====================================================
-// // // GENERATE JWT TOKEN
-// // // =====================================================
-
-// // function signToken(user) {
-// //   const secret = process.env.JWT_SECRET;
-
-// //   if (!secret) {
-// //     throw new Error("JWT_SECRET is not configured");
-// //   }
-
-// //   return jwt.sign(
-// //     {
-// //       id: user._id.toString(),
-// //       role: user.role,
-// //     },
-// //     secret,
-// //     {
-// //       expiresIn:
-// //         process.env.JWT_EXPIRES_IN || "7d",
-// //     }
-// //   );
-// // }
-
-// // // =====================================================
-// // // SANITIZE USER
-// // // =====================================================
-
-// // function sanitizeUser(user) {
-// //   if (!user) {
-// //     return null;
-// //   }
-
-// //   const obj = user.toObject
-// //     ? user.toObject()
-// //     : { ...user };
-
-// //   if (obj._id) {
-// //     obj.id = obj._id.toString();
-// //     delete obj._id;
-// //   }
-
-// //   delete obj.password;
-// //   delete obj.passwordHash;
-// //   delete obj.refreshTokens;
-// //   delete obj.passwordResetToken;
-// //   delete obj.passwordResetExpires;
-
-// //   return obj;
-// // }
-
-// // // =====================================================
-// // // REGISTER NORMAL USER
-// // // CUSTOMER / ADMIN
-// // // =====================================================
-
-// // async function registerUser(payload) {
-// //   const {
-// //     name,
-// //     email,
-// //     phone,
-// //     password,
-// //     role,
-// //     adminKey,
-// //   } = payload;
-
-// //   if (!name || !name.trim()) {
-// //     throw {
-// //       statusCode: 400,
-// //       message: "Name is required.",
-// //     };
-// //   }
-
-// //   if (!email || !email.trim()) {
-// //     throw {
-// //       statusCode: 400,
-// //       message: "Email is required.",
-// //     };
-// //   }
-
-// //   if (!phone || !phone.trim()) {
-// //     throw {
-// //       statusCode: 400,
-// //       message: "Phone number is required.",
-// //     };
-// //   }
-
-// //   if (!password) {
-// //     throw {
-// //       statusCode: 400,
-// //       message: "Password is required.",
-// //     };
-// //   }
-
-// //   const normalizedEmail =
-// //     email.trim().toLowerCase();
-
-// //   const existing = await User.findOne({
-// //     email: normalizedEmail,
-// //   });
-
-// //   if (existing) {
-// //     throw {
-// //       statusCode: 409,
-// //       message: "User already exists.",
-// //     };
-// //   }
-
-// //   let finalRole = "customer";
-
-// //   // ===================================================
-// //   // CUSTOMER
-// //   // ===================================================
-
-// //   if (!role || role === "customer") {
-// //     finalRole = "customer";
-// //   }
-
-// //   // ===================================================
-// //   // ADMIN
-// //   // ===================================================
-
-// //   else if (role === "admin") {
-// //     if (
-// //       !process.env.ADMIN_REGISTRATION_KEY ||
-// //       adminKey !==
-// //         process.env.ADMIN_REGISTRATION_KEY
-// //     ) {
-// //       throw {
-// //         statusCode: 403,
-// //         message:
-// //           "Invalid admin registration key.",
-// //       };
-// //     }
-
-// //     finalRole = "admin";
-// //   }
-
-// //   // ===================================================
-// //   // WORKER
-// //   // ===================================================
-
-// //   else if (role === "worker") {
-// //     throw {
-// //       statusCode: 403,
-// //       message:
-// //         "Worker registration must use the worker registration API.",
-// //     };
-// //   }
-
-// //   else {
-// //     throw {
-// //       statusCode: 400,
-// //       message: "Invalid role.",
-// //     };
-// //   }
-
-// //   const salt = await bcrypt.genSalt(
-// //     Number(process.env.BCRYPT_ROUNDS) || 12
-// //   );
-
-// //   const passwordHash =
-// //     await bcrypt.hash(password, salt);
-
-// //   const user = await User.create({
-// //     name: name.trim(),
-// //     email: normalizedEmail,
-// //     phone: phone.trim(),
-// //     passwordHash,
-// //     role: finalRole,
-// //     status: "active",
-// //   });
-
-// //   // ===================================================
-// //   // ACCESS TOKEN
-// //   // ===================================================
-
-// //   const token = signToken(user);
-
-// //   // ===================================================
-// //   // REFRESH TOKEN
-// //   // ===================================================
-
-// //   const refreshToken = nanoid(64);
-
-// //   if (!Array.isArray(user.refreshTokens)) {
-// //     user.refreshTokens = [];
-// //   }
-
-// //   user.refreshTokens.push({
-// //     tokenHash: refreshToken,
-// //     createdAt: new Date(),
-// //   });
-
-// //   await user.save();
-
-// //   return {
-// //     user: sanitizeUser(user),
-// //     token,
-// //     refreshToken,
-// //   };
-// // }
-
-// // // =====================================================
-// // // LOGIN NORMAL USER
-// // // =====================================================
-
-// // async function loginUser(email, password) {
-// //   if (!email || !password) {
-// //     throw {
-// //       statusCode: 400,
-// //       message:
-// //         "Email and password are required.",
-// //     };
-// //   }
-
-// //   const normalizedEmail =
-// //     email.trim().toLowerCase();
-
-// //   const user = await User.findOne({
-// //     email: normalizedEmail,
-// //   });
-
-// //   if (!user) {
-// //     throw {
-// //       statusCode: 401,
-// //       message: "Invalid credentials.",
-// //     };
-// //   }
-
-// //   // Worker credentials belong to the Worker collection and must use the
-// //   // dedicated worker login endpoint.
-// //   if (user.role === "worker") {
-// //     throw {
-// //       statusCode: 403,
-// //       message: "Please sign in through the worker login.",
-// //     };
-// //   }
-
-// //   if (user.status !== "active") {
-// //     throw {
-// //       statusCode: 403,
-// //       message: "Your account is blocked.",
-// //     };
-// //   }
-
-// //   const isMatch =
-// //     await bcrypt.compare(
-// //       password,
-// //       user.passwordHash
-// //     );
-
-// //   if (!isMatch) {
-// //     throw {
-// //       statusCode: 401,
-// //       message: "Invalid credentials.",
-// //     };
-// //   }
-
-// //   const token = signToken(user);
-
-// //   const refreshToken = nanoid(64);
-
-// //   if (!Array.isArray(user.refreshTokens)) {
-// //     user.refreshTokens = [];
-// //   }
-
-// //   user.refreshTokens.push({
-// //     tokenHash: refreshToken,
-// //     createdAt: new Date(),
-// //   });
-
-// //   await user.save();
-
-// //   return {
-// //     user: sanitizeUser(user),
-// //     token,
-// //     refreshToken,
-// //   };
-// // }
-
-// // // =====================================================
-// // // REFRESH AUTH
-// // // =====================================================
-
-// // async function refreshAuth(refreshToken) {
-// //   if (!refreshToken) {
-// //     throw {
-// //       statusCode: 400,
-// //       message:
-// //         "Refresh token is required.",
-// //     };
-// //   }
-
-// //   const user = await User.findOne({
-// //     "refreshTokens.tokenHash":
-// //       refreshToken,
-// //   });
-
-// //   if (!user) {
-// //     throw {
-// //       statusCode: 401,
-// //       message:
-// //         "Invalid refresh token.",
-// //     };
-// //   }
-
-// //   if (user.status !== "active") {
-// //     throw {
-// //       statusCode: 403,
-// //       message:
-// //         "Your account is blocked.",
-// //     };
-// //   }
-
-// //   const token = signToken(user);
-
-// //   return {
-// //     user: sanitizeUser(user),
-// //     token,
-// //   };
-// // }
-
-// // // =====================================================
-// // // LOGOUT
-// // // =====================================================
-
-// // async function logout(
-// //   userId,
-// //   refreshToken
-// // ) {
-// //   if (refreshToken) {
-// //     await User.findByIdAndUpdate(
-// //       userId,
-// //       {
-// //         $pull: {
-// //           refreshTokens: {
-// //             tokenHash: refreshToken,
-// //           },
-// //         },
-// //       }
-// //     );
-// //   } else {
-// //     await User.findByIdAndUpdate(
-// //       userId,
-// //       {
-// //         $set: {
-// //           refreshTokens: [],
-// //         },
-// //       }
-// //     );
-// //   }
-
-// //   return true;
-// // }
-
-// // // =====================================================
-// // // SEND PASSWORD RESET
-// // // =====================================================
-
-// // async function sendPasswordReset(email) {
-// //   if (!email) {
-// //     throw {
-// //       statusCode: 400,
-// //       message: "Email is required.",
-// //     };
-// //   }
-
-// //   const normalizedEmail =
-// //     email.trim().toLowerCase();
-
-// //   const user = await User.findOne({
-// //     email: normalizedEmail,
-// //   });
-
-// //   if (!user) {
-// //     return null;
-// //   }
-
-// //   const resetToken =
-// //     crypto
-// //       .randomBytes(32)
-// //       .toString("hex");
-
-// //   const hashedToken =
-// //     crypto
-// //       .createHash("sha256")
-// //       .update(resetToken)
-// //       .digest("hex");
-
-// //   user.passwordResetToken =
-// //     hashedToken;
-
-// //   user.passwordResetExpires =
-// //     Date.now() + 60 * 60 * 1000;
-
-// //   await user.save();
-
-// //   return resetToken;
-// // }
-
-// // // =====================================================
-// // // RESET PASSWORD
-// // // =====================================================
-
-// // async function resetPassword(
-// //   token,
-// //   newPassword
-// // ) {
-// //   if (!token || !newPassword) {
-// //     throw {
-// //       statusCode: 400,
-// //       message:
-// //         "Reset token and new password are required.",
-// //     };
-// //   }
-
-// //   const hashedToken =
-// //     crypto
-// //       .createHash("sha256")
-// //       .update(token)
-// //       .digest("hex");
-
-// //   const user = await User.findOne({
-// //     passwordResetToken:
-// //       hashedToken,
-
-// //     passwordResetExpires: {
-// //       $gt: Date.now(),
-// //     },
-// //   });
-
-// //   if (!user) {
-// //     throw {
-// //       statusCode: 400,
-// //       message:
-// //         "Invalid or expired password reset token.",
-// //     };
-// //   }
-
-// //   const salt = await bcrypt.genSalt(
-// //     Number(process.env.BCRYPT_ROUNDS) || 12
-// //   );
-
-// //   user.passwordHash =
-// //     await bcrypt.hash(
-// //       newPassword,
-// //       salt
-// //     );
-
-// //   user.passwordResetToken =
-// //     undefined;
-
-// //   user.passwordResetExpires =
-// //     undefined;
-
-// //   user.refreshTokens = [];
-
-// //   await user.save();
-
-// //   return sanitizeUser(user);
-// // }
-
-// // // =====================================================
-// // // GET PROFILE
-// // // =====================================================
-
-// // async function getProfile(userId) {
-// //   const user =
-// //     await User.findById(userId);
-
-// //   if (!user) {
-// //     throw {
-// //       statusCode: 404,
-// //       message: "User not found.",
-// //     };
-// //   }
-
-// //   return sanitizeUser(user);
-// // }
-
-// // // =====================================================
-// // // UPDATE USER PROFILE
-// // // =====================================================
-
-// // async function updateUserProfile(
-// //   userId,
-// //   payload
-// // ) {
-// //   const allowedFields = [
-// //     "name",
-// //     "phone",
-// //     "addresses",
-// //   ];
-
-// //   const updateData = {};
-
-// //   for (const field of allowedFields) {
-// //     if (
-// //       Object.prototype.hasOwnProperty.call(
-// //         payload,
-// //         field
-// //       )
-// //     ) {
-// //       updateData[field] =
-// //         payload[field];
-// //     }
-// //   }
-
-// //   // ===================================================
-// //   // PASSWORD UPDATE
-// //   // ===================================================
-
-// //   if (payload.password) {
-// //     const salt = await bcrypt.genSalt(
-// //       Number(process.env.BCRYPT_ROUNDS) || 12
-// //     );
-
-// //     updateData.passwordHash =
-// //       await bcrypt.hash(
-// //         payload.password,
-// //         salt
-// //       );
-
-// //     updateData.refreshTokens = [];
-// //   }
-
-// //   const updatedUser =
-// //     await User.findByIdAndUpdate(
-// //       userId,
-// //       {
-// //         $set: updateData,
-// //       },
-// //       {
-// //         new: true,
-// //         runValidators: true,
-// //       }
-// //     );
-
-// //   if (!updatedUser) {
-// //     throw {
-// //       statusCode: 404,
-// //       message: "User not found.",
-// //     };
-// //   }
-
-// //   return sanitizeUser(updatedUser);
-// // }
-
-// // // =====================================================
-// // // EXPORTS
-// // // =====================================================
-
-// // module.exports = {
-// //   registerUser,
-// //   loginUser,
-// //   refreshAuth,
-// //   logout,
-// //   sendPasswordReset,
-// //   resetPassword,
-// //   getProfile,
-// //   updateUserProfile,
-// // };
-
 // const User = require("../models/User");
 // const jwt = require("jsonwebtoken");
 // const bcrypt = require("bcryptjs");
@@ -2135,7 +1565,6 @@
 //   getProfile,
 //   updateUserProfile,
 // };
-
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
@@ -2161,8 +1590,7 @@ function signToken(user) {
     },
     secret,
     {
-      expiresIn:
-        process.env.JWT_EXPIRES_IN || "7d",
+      expiresIn: process.env.JWT_EXPIRES_IN || "7d",
     }
   );
 }
@@ -2237,8 +1665,7 @@ async function registerUser(payload) {
     };
   }
 
-  const normalizedEmail =
-    email.trim().toLowerCase();
+  const normalizedEmail = email.trim().toLowerCase();
 
   const existing = await User.findOne({
     email: normalizedEmail,
@@ -2268,13 +1695,11 @@ async function registerUser(payload) {
   else if (role === "admin") {
     if (
       !process.env.ADMIN_REGISTRATION_KEY ||
-      adminKey !==
-        process.env.ADMIN_REGISTRATION_KEY
+      adminKey !== process.env.ADMIN_REGISTRATION_KEY
     ) {
       throw {
         statusCode: 403,
-        message:
-          "Invalid admin registration key.",
+        message: "Invalid admin registration key.",
       };
     }
 
@@ -2291,9 +1716,7 @@ async function registerUser(payload) {
       message:
         "Worker registration must use the worker registration API.",
     };
-  }
-
-  else {
+  } else {
     throw {
       statusCode: 400,
       message: "Invalid role.",
@@ -2304,8 +1727,7 @@ async function registerUser(payload) {
     Number(process.env.BCRYPT_ROUNDS) || 12
   );
 
-  const passwordHash =
-    await bcrypt.hash(password, salt);
+  const passwordHash = await bcrypt.hash(password, salt);
 
   const user = await User.create({
     name: name.trim(),
@@ -2354,13 +1776,11 @@ async function loginUser(email, password) {
   if (!email || !password) {
     throw {
       statusCode: 400,
-      message:
-        "Email and password are required.",
+      message: "Email and password are required.",
     };
   }
 
-  const normalizedEmail =
-    email.trim().toLowerCase();
+  const normalizedEmail = email.trim().toLowerCase();
 
   const user = await User.findOne({
     email: normalizedEmail,
@@ -2373,8 +1793,7 @@ async function loginUser(email, password) {
     };
   }
 
-  // Worker credentials belong to the Worker collection and must use the
-  // dedicated worker login endpoint.
+  // Worker credentials belong to the Worker collection.
   if (user.role === "worker") {
     throw {
       statusCode: 403,
@@ -2389,11 +1808,10 @@ async function loginUser(email, password) {
     };
   }
 
-  const isMatch =
-    await bcrypt.compare(
-      password,
-      user.passwordHash
-    );
+  const isMatch = await bcrypt.compare(
+    password,
+    user.passwordHash
+  );
 
   if (!isMatch) {
     throw {
@@ -2403,7 +1821,6 @@ async function loginUser(email, password) {
   }
 
   const token = signToken(user);
-
   const refreshToken = nanoid(64);
 
   if (!Array.isArray(user.refreshTokens)) {
@@ -2432,29 +1849,25 @@ async function refreshAuth(refreshToken) {
   if (!refreshToken) {
     throw {
       statusCode: 400,
-      message:
-        "Refresh token is required.",
+      message: "Refresh token is required.",
     };
   }
 
   const user = await User.findOne({
-    "refreshTokens.tokenHash":
-      refreshToken,
+    "refreshTokens.tokenHash": refreshToken,
   });
 
   if (!user) {
     throw {
       statusCode: 401,
-      message:
-        "Invalid refresh token.",
+      message: "Invalid refresh token.",
     };
   }
 
   if (user.status !== "active") {
     throw {
       statusCode: 403,
-      message:
-        "Your account is blocked.",
+      message: "Your account is blocked.",
     };
   }
 
@@ -2470,10 +1883,7 @@ async function refreshAuth(refreshToken) {
 // LOGOUT
 // =====================================================
 
-async function logout(
-  userId,
-  refreshToken
-) {
+async function logout(userId, refreshToken) {
   if (refreshToken) {
     await User.findByIdAndUpdate(
       userId,
@@ -2504,35 +1914,44 @@ async function logout(
 // =====================================================
 
 function createEmailTransporter() {
-  const emailUser = process.env.EMAIL_USER;
-  const emailPass = process.env.EMAIL_PASS;
+  const emailUser = (
+    process.env.EMAIL_USER || ""
+  ).trim();
+
+  // Support both EMAIL_PASS and EMAIL_PASSWORD.
+  const emailPass = (
+    process.env.EMAIL_PASS ||
+    process.env.EMAIL_PASSWORD ||
+    ""
+  ).replace(/\s/g, "");
 
   if (!emailUser || !emailPass) {
     throw {
       statusCode: 500,
       message:
-        "Email configuration is missing on server. Please configure EMAIL_USER and EMAIL_PASS.",
+        "Email configuration is missing. Please configure EMAIL_USER and EMAIL_PASS in the server environment.",
     };
   }
 
+  const emailHost =
+    process.env.EMAIL_HOST || "smtp.gmail.com";
+
+  const emailPort =
+    Number(process.env.EMAIL_PORT) || 587;
+
+  const secure =
+    String(process.env.EMAIL_SECURE || "").toLowerCase() === "true" ||
+    emailPort === 465;
+
   return nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
-    requireTLS: true,
+    host: emailHost,
+    port: emailPort,
+    secure,
 
-    family: 4,
-
-    lookup: (hostname, options, callback) => {
-      dns.lookup(
-        hostname,
-        {
-          family: 4,
-          all: false,
-        },
-        callback
-      );
-    },
+    // Use TLS for Gmail port 587.
+    ...(emailPort === 587
+      ? { requireTLS: true }
+      : {}),
 
     auth: {
       user: emailUser,
@@ -2542,23 +1961,37 @@ function createEmailTransporter() {
     connectionTimeout: 30000,
     greetingTimeout: 30000,
     socketTimeout: 30000,
-    dnsTimeout: 30000,
   });
 }
+
+// =====================================================
+// CLEAR PASSWORD RESET TOKEN
+// =====================================================
+
+async function clearPasswordResetToken(user) {
+  user.passwordResetToken = undefined;
+  user.passwordResetExpires = undefined;
+
+  await user.save({
+    validateBeforeSave: false,
+  });
+}
+
 // =====================================================
 // SEND PASSWORD RESET
 // =====================================================
 
 async function sendPasswordReset(email) {
-  if (!email) {
+  if (!email || !String(email).trim()) {
     throw {
       statusCode: 400,
       message: "Email is required.",
     };
   }
 
-  const normalizedEmail =
-    email.trim().toLowerCase();
+  const normalizedEmail = String(email)
+    .trim()
+    .toLowerCase();
 
   // ===================================================
   // FIND USER
@@ -2574,7 +2007,7 @@ async function sendPasswordReset(email) {
   }
 
   // ===================================================
-  // OPTIONAL ADMIN PROTECTION
+  // ADMIN PROTECTION
   // ===================================================
 
   if (user.role === "admin") {
@@ -2586,28 +2019,43 @@ async function sendPasswordReset(email) {
   }
 
   // ===================================================
+  // CREATE EMAIL TRANSPORTER
+  // Check configuration before creating reset token.
+  // ===================================================
+
+  let transporter;
+
+  try {
+    transporter = createEmailTransporter();
+  } catch (error) {
+    console.error(
+      "Email transporter configuration error:",
+      error.message || error
+    );
+
+    throw error;
+  }
+
+  // ===================================================
   // GENERATE RESET TOKEN
   // ===================================================
 
-  const resetToken =
-    crypto
-      .randomBytes(32)
-      .toString("hex");
+  const resetToken = crypto
+    .randomBytes(32)
+    .toString("hex");
 
   // ===================================================
   // HASH TOKEN BEFORE DATABASE STORAGE
   // ===================================================
 
-  const hashedToken =
-    crypto
-      .createHash("sha256")
-      .update(resetToken)
-      .digest("hex");
+  const hashedToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
 
-  user.passwordResetToken =
-    hashedToken;
+  user.passwordResetToken = hashedToken;
 
-  // Token valid for 1 hour
+  // Token valid for 1 hour.
   user.passwordResetExpires =
     Date.now() + 60 * 60 * 1000;
 
@@ -2619,35 +2067,6 @@ async function sendPasswordReset(email) {
   );
 
   // ===================================================
-  // CREATE EMAIL TRANSPORTER
-  // ===================================================
-
-  let transporter;
-
-  try {
-    transporter =
-      createEmailTransporter();
-  } catch (error) {
-    console.error(
-      "Email transporter configuration error:",
-      error.message
-    );
-
-    // Remove token because email cannot be sent.
-    user.passwordResetToken =
-      undefined;
-
-    user.passwordResetExpires =
-      undefined;
-
-    await user.save({
-      validateBeforeSave: false,
-    });
-
-    throw error;
-  }
-
-  // ===================================================
   // VERIFY GMAIL SMTP
   // ===================================================
 
@@ -2655,29 +2074,20 @@ async function sendPasswordReset(email) {
     await transporter.verify();
 
     console.log(
-      "Gmail SMTP connection verified successfully"
+      "Gmail SMTP connection verified successfully."
     );
   } catch (smtpError) {
     console.error(
       "Gmail SMTP verification failed:",
-      smtpError
+      smtpError.message || smtpError
     );
 
-    // Do not leave a usable token when email failed.
-    user.passwordResetToken =
-      undefined;
-
-    user.passwordResetExpires =
-      undefined;
-
-    await user.save({
-      validateBeforeSave: false,
-    });
+    await clearPasswordResetToken(user);
 
     throw {
       statusCode: 500,
       message:
-        "Gmail SMTP connection failed. Please check EMAIL_USER and EMAIL_PASS.",
+        "Gmail SMTP connection failed. Please check EMAIL_USER, EMAIL_PASS and Gmail App Password settings.",
     };
   }
 
@@ -2687,31 +2097,30 @@ async function sendPasswordReset(email) {
 
   const frontendUrl =
     process.env.FRONTEND_URL ||
+    process.env.CLIENT_URL ||
     "http://localhost:5173";
 
   const resetLink =
     `${frontendUrl.replace(/\/+$/, "")}` +
-    `/reset-password?token=${encodeURIComponent(
-      resetToken
-    )}`;
+    `/reset-password?token=${encodeURIComponent(resetToken)}`;
 
   // ===================================================
   // EMAIL CONTENT
   // ===================================================
+
+  const safeName = user.name || "User";
 
   const mailOptions = {
     from:
       process.env.EMAIL_FROM ||
       process.env.EMAIL_USER,
 
-    to:
-      user.email,
+    to: user.email,
 
-    subject:
-      "Password Reset Request - Vani",
+    subject: "Password Reset Request - Vani",
 
     text: `
-Hello ${user.name || "User"},
+Hello ${safeName},
 
 We received a request to reset your Vani account password.
 
@@ -2759,7 +2168,6 @@ Vani Systems Team
                 box-shadow:0 4px 18px rgba(0,0,0,0.08);
               "
             >
-
               <h2
                 style="
                   margin:0 0 20px;
@@ -2786,9 +2194,7 @@ Vani Systems Team
                   line-height:1.6;
                 "
               >
-                Hello ${
-                  user.name || "User"
-                },
+                Hello ${safeName},
               </p>
 
               <p
@@ -2898,7 +2304,6 @@ Vani Systems Team
                 Regards,<br />
                 <strong>Vani Systems Team</strong>
               </p>
-
             </div>
           </div>
         </body>
@@ -2911,19 +2316,13 @@ Vani Systems Team
   // ===================================================
 
   try {
-    const info =
-      await transporter.sendMail(
-        mailOptions
-      );
+    const info = await transporter.sendMail(mailOptions);
 
     console.log(
       "Password reset email sent successfully."
     );
 
-    console.log(
-      "Message ID:",
-      info.messageId
-    );
+    console.log("Message ID:", info.messageId);
 
     console.log(
       "Password reset email recipient:",
@@ -2932,40 +2331,20 @@ Vani Systems Team
   } catch (emailError) {
     console.error(
       "Password reset email sending failed:",
-      emailError
+      emailError.message || emailError
     );
 
-    // IMPORTANT:
-    // Do not keep the token if the email was not sent.
-    user.passwordResetToken =
-      undefined;
-
-    user.passwordResetExpires =
-      undefined;
-
-    await user.save({
-      validateBeforeSave: false,
-    });
+    await clearPasswordResetToken(user);
 
     throw {
       statusCode: 500,
       message:
-        "Unable to send password reset email. Please check the Gmail SMTP configuration.",
+        "Unable to send password reset email. Please check the Gmail SMTP configuration and App Password.",
     };
   }
 
-  // ===================================================
-  // RETURN RAW TOKEN TO CONTROLLER
-  // ===================================================
-  //
-  // The controller may expose debugToken only when
-  // NODE_ENV is not production.
-  //
-  // The token itself is NOT sent to the user as API
-  // data in production. The user receives it through
-  // the email reset link.
-  // ===================================================
-
+  // Return raw token to controller.
+  // Production controller must not expose this token in API response.
   return resetToken;
 }
 
@@ -2973,10 +2352,7 @@ Vani Systems Team
 // RESET PASSWORD
 // =====================================================
 
-async function resetPassword(
-  token,
-  newPassword
-) {
+async function resetPassword(token, newPassword) {
   if (!token || !newPassword) {
     throw {
       statusCode: 400,
@@ -2985,15 +2361,20 @@ async function resetPassword(
     };
   }
 
-  const hashedToken =
-    crypto
-      .createHash("sha256")
-      .update(token)
-      .digest("hex");
+  if (String(newPassword).length < 6) {
+    throw {
+      statusCode: 400,
+      message: "Password must be at least 6 characters long.",
+    };
+  }
+
+  const hashedToken = crypto
+    .createHash("sha256")
+    .update(token)
+    .digest("hex");
 
   const user = await User.findOne({
-    passwordResetToken:
-      hashedToken,
+    passwordResetToken: hashedToken,
 
     passwordResetExpires: {
       $gt: Date.now(),
@@ -3012,18 +2393,15 @@ async function resetPassword(
     Number(process.env.BCRYPT_ROUNDS) || 12
   );
 
-  user.passwordHash =
-    await bcrypt.hash(
-      newPassword,
-      salt
-    );
+  user.passwordHash = await bcrypt.hash(
+    newPassword,
+    salt
+  );
 
-  user.passwordResetToken =
-    undefined;
+  user.passwordResetToken = undefined;
+  user.passwordResetExpires = undefined;
 
-  user.passwordResetExpires =
-    undefined;
-
+  // Invalidate existing refresh tokens after password reset.
   user.refreshTokens = [];
 
   await user.save();
@@ -3036,8 +2414,7 @@ async function resetPassword(
 // =====================================================
 
 async function getProfile(userId) {
-  const user =
-    await User.findById(userId);
+  const user = await User.findById(userId);
 
   if (!user) {
     throw {
@@ -3053,10 +2430,7 @@ async function getProfile(userId) {
 // UPDATE USER PROFILE
 // =====================================================
 
-async function updateUserProfile(
-  userId,
-  payload
-) {
+async function updateUserProfile(userId, payload) {
   const allowedFields = [
     "name",
     "phone",
@@ -3072,8 +2446,7 @@ async function updateUserProfile(
         field
       )
     ) {
-      updateData[field] =
-        payload[field];
+      updateData[field] = payload[field];
     }
   }
 
@@ -3082,30 +2455,35 @@ async function updateUserProfile(
   // ===================================================
 
   if (payload.password) {
+    if (String(payload.password).length < 6) {
+      throw {
+        statusCode: 400,
+        message: "Password must be at least 6 characters long.",
+      };
+    }
+
     const salt = await bcrypt.genSalt(
       Number(process.env.BCRYPT_ROUNDS) || 12
     );
 
-    updateData.passwordHash =
-      await bcrypt.hash(
-        payload.password,
-        salt
-      );
+    updateData.passwordHash = await bcrypt.hash(
+      payload.password,
+      salt
+    );
 
     updateData.refreshTokens = [];
   }
 
-  const updatedUser =
-    await User.findByIdAndUpdate(
-      userId,
-      {
-        $set: updateData,
-      },
-      {
-        new: true,
-        runValidators: true,
-      }
-    );
+  const updatedUser = await User.findByIdAndUpdate(
+    userId,
+    {
+      $set: updateData,
+    },
+    {
+      new: true,
+      runValidators: true,
+    }
+  );
 
   if (!updatedUser) {
     throw {
@@ -3131,14 +2509,6 @@ module.exports = {
   getProfile,
   updateUserProfile,
 };
-
-
-
-
-
-
-
-
 
 
 

@@ -2016,10 +2016,14 @@ async function sendPasswordReset(email) {
     // IMPORTANT: createEmailTransporter is now async.
     transporter = await createEmailTransporter();
   } catch (error) {
-    console.error(
-      "Email transporter configuration error:",
-      error.message || error
-    );
+   console.error("SMTP ERROR DETAILS:", {
+  message: smtpError.message,
+  code: smtpError.code,
+  command: smtpError.command,
+  syscall: smtpError.syscall,
+  address: smtpError.address,
+  port: smtpError.port
+});
 
     throw error;
   }

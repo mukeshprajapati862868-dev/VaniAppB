@@ -160,6 +160,11 @@ const workerSchema = new mongoose.Schema(
       min: 0,
       max: 5,
     },
+    totalReviews: {
+      type: Number,
+      default: 0,
+      min: 0,
+},
 
     // =====================================================
     // ROLE

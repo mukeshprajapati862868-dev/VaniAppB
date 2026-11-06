@@ -326,6 +326,7 @@ const userRoutes = require("./routes/users");
 const adminRoutes = require("./routes/admin");
 const serviceRoutes = require("./routes/serviceRoutes");
 const workerRoutes = require("./routes/workerRoutes");
+const reviewRoutes = require("./routes/reviewRoutes");
 // const chatRoutes = require("./routes/chatRoutes");
 
 // Settings routes (GET/PUT /api/admin/settings)

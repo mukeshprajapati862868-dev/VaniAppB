@@ -506,7 +506,7 @@ app.use("/api/admin/settings", settingsRoutes);
 
 app.use("/api/workers", workerRoutes);
 app.use("/api/services", serviceRoutes);
-
+app.use("/api/reviews", reviewRoutes);
 // ===============================
 // ROOT ROUTE
 // ===============================
